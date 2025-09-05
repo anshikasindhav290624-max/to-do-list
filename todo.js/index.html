@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Developer To-Do List</title>
+  <style>
+    /* Reset & base */
+    :root{
+      --bg:#0f1724; --card:#0b1220; --muted:#94a3b8; --accent:#7c5cff; --success:#22c55e;
+      --glass: rgba(255,255,255,0.04);
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; background:linear-gradient(180deg,#071020 0%, #081426 100%);
+      color:#e6eef8; display:flex; align-items:center; justify-content:center; padding:28px;
+    }
+
+    /* App card */
+    .app {
+      width:100%; max-width:760px; background:linear-gradient(180deg,var(--card), rgba(11,18,32,0.9));
+      border-radius:14px; padding:20px; box-shadow: 0 10px 30px rgba(2,6,23,0.7);
+      backdrop-filter: blur(6px);
+    }
+    header { display:flex; align-items:center; gap:16px; margin-bottom:12px; }
+    h1{font-size:20px;margin:0}
+    .subtitle{color:var(--muted); font-size:13px}
+
+    /* Input row */
+    .input-row{
+      display:flex; gap:10px; margin-top:12px; align-items:center;
+    }
+    .task-input{
+      flex:1; padding:12px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.04);
+      background:var(--glass); color:inherit; font-size:15px; outline:none;
+      transition:box-shadow .15s, transform .08s;
+    }
+    .task-input:focus{ box-shadow:0 6px 18px rgba(124,92,255,0.14); transform:translateY(-1px); }
+
+    .btn {
+      padding:10px 14px; border-radius:10px; background:linear-gradient(90deg,var(--accent), #5b43ff);
+      border:none; color:white; cursor:pointer; font-weight:600; font-size:14px;
+      box-shadow:0 6px 18px rgba(92,62,255,0.12);
+    }
+    .btn.secondary{
+      background:transparent; border:1px solid rgba(255,255,255,0.06); color:var(--muted);
+      box-shadow:none; font-weight:500;
+    }
+
+    /* List */
+    .controls { display:flex; justify-content:space-between; align-items:center; margin:14px 0 10px; gap:8px; flex-wrap:wrap; }
+    .filters{ display:flex; gap:8px; }
+    .filters button{ padding:8px 10px; border-radius:8px; border:none; background:transparent; color:var(--muted); cursor:pointer; }
+    .filters button.active{ color:#fff; background:rgba(255,255,255,0.03); box-shadow: inset 0 -2px 0 rgba(255,255,255,0.03); }
+
+    ul.todo-list{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px; max-height:52vh; overflow:auto; padding-right:6px; }
+    li.item{
+      display:flex; align-items:center; gap:12px; padding:12px; border-radius:10px; background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border:1px solid rgba(255,255,255,0.02);
+    }
+    .check {
+      width:20px; height:20px; border-radius:6px; display:inline-grid; place-items:center; cursor:pointer;
+      background:transparent; border:1px solid rgba(255,255,255,0.06);
+    }
+    .check.completed{ background:linear-gradient(90deg,var(--success), #16a34a); border:none; color:#05260f; }
+
+    .content{
+      flex:1; min-width:0; font-size:15px; color:var(--muted);
+    }
+    .content.completed{ text-decoration:line-through; color:rgba(255,255,255,0.35); }
+
+    .actions{ display:flex; gap:8px; align-items:center; }
+    .icon-btn{ background:transparent; border:none; color:var(--muted); cursor:pointer; padding:6px; border-radius:8px; }
+    .icon-btn:hover{ color:#fff; background:rgba(255,255,255,0.02); }
+
+    /* Inline edit style */
+    .edit {
+      width:100%; padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.04); background:transparent;
+      color:inherit; font-size:15px; outline:none;
+    }
+
+    footer.meta{ display:flex; justify-content:space-between; align-items:center; gap:8px; color:var(--muted); margin-top:12px; font-size:13px; flex-wrap:wrap; }
+    .count{ font-weight:700; color:#fff }
+
+    /* small screens */
+    @media (max-width:520px){
+      .input-row{ flex-direction:column; align-items:stretch; }
+      .btn{ width:100% }
+      .controls{ gap:8px }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" role="application" aria-labelledby="app-title">
+    <header>
+      <div>
+        <h1 id="app-title">Developer To-Do</h1>
+        <div class="subtitle">Simple, keyboard-friendly, persistent tasks</div>
+      </div>
+    </header>
+
+    <div class="input-row" aria-hidden="false">
+      <input id="newTask" class="task-input" placeholder="Add a new task (press Enter)" aria-label="New task" />
+      <button id="addBtn" class="btn" aria-label="Add task">Add</button>
+      <button id="clearCompleted" class="btn secondary" aria-label="Clear completed tasks">Clear completed</button>
+    </div>
+
+    <div class="controls" role="region" aria-label="Task controls">
+      <div class="filters" role="tablist" aria-label="Filters">
+        <button data-filter="all" class="active" role="tab" aria-selected="true">All</button>
+        <button data-filter="active" role="tab" aria-selected="false">Active</button>
+        <button data-filter="completed" role="tab" aria-selected="false">Completed</button>
+      </div>
+      <div class="actions">
+        <button id="toggleAll" class="icon-btn" title="Toggle all" aria-label="Toggle all tasks">Toggle all</button>
+        <button id="exportBtn" class="icon-btn" title="Export JSON" aria-label="Export tasks as JSON">Export</button>
+      </div>
+    </div>
+
+    <ul id="list" class="todo-list" aria-live="polite" aria-label="To-do list"></ul>
+
+    <footer class="meta">
+      <div><span id="remaining" class="count">0</span> items left</div>
+      <div class="subtitle">Built thoughtfully • Local only • Accessible</div>
+    </footer>
+  </main>
+
+  <script>
+    // === Simple robust To-Do app ===
+    (function(){
+      const SELECTORS = {
+        list: '#list', newTask: '#newTask', addBtn: '#addBtn',
+        filters: '.filters', clearCompleted: '#clearCompleted', remaining: '#remaining',
+        toggleAll: '#toggleAll', exportBtn: '#exportBtn'
+      };
+
+      // data model
+      let tasks = []; // {id, text, completed, created}
+      const LS_KEY = 'dev_todo_v1';
+
+      // DOM refs
+      const $list = document.querySelector(SELECTORS.list);
+      const $newTask = document.querySelector(SELECTORS.newTask);
+      const $addBtn = document.querySelector(SELECTORS.addBtn);
+      const $filters = document.querySelector(SELECTORS.filters);
+      const $clearCompleted = document.querySelector(SELECTORS.clearCompleted);
+      const $remaining = document.querySelector(SELECTORS.remaining);
+      const $toggleAll = document.querySelector(SELECTORS.toggleAll);
+      const $exportBtn = document.querySelector(SELECTORS.exportBtn);
+
+      // utils
+      const uid = ()=> Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+      const save = ()=> localStorage.setItem(LS_KEY, JSON.stringify(tasks));
+      const load = ()=> JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+
+      // render
+      function render(filter='all'){
+        $list.innerHTML = '';
+        const visible = tasks.filter(t => {
+          if(filter==='active') return !t.completed;
+          if(filter==='completed') return t.completed;
+          return true;
+        });
+
+        for(const t of visible){
+          const li = document.createElement('li');
+          li.className = 'item';
+          li.dataset.id = t.id;
+          li.innerHTML = `
+            <button class="check ${t.completed ? 'completed' : ''}" aria-label="${t.completed ? 'Mark as active' : 'Mark as complete'}" title="${t.completed ? 'Uncomplete' : 'Complete'}">
+              ${t.completed ? '&#10003;' : ''}
+            </button>
+            <div class="content ${t.completed ? 'completed' : ''}" tabindex="0" role="textbox" aria-label="Task: ${escapeHtml(t.text)}">${escapeHtml(t.text)}</div>
+            <div class="actions">
+              <button class="icon-btn edit" title="Edit task" aria-label="Edit task">Edit</button>
+              <button class="icon-btn delete" title="Delete task" aria-label="Delete task">Delete</button>
+            </div>
+          `;
+          attachListHandlers(li, t);
+          $list.appendChild(li);
+        }
+        updateMeta();
+      }
+
+      // attach handlers for item actions (delegated per item)
+      function attachListHandlers(li, task){
+        const id = task.id;
+        const check = li.querySelector('.check');
+        const content = li.querySelector('.content');
+        const editBtn = li.querySelector('.edit');
+        const deleteBtn = li.querySelector('.delete');
+
+        check.addEventListener('click', () => {
+          task.completed = !task.completed;
+          save(); render(currentFilter());
+        });
+
+        deleteBtn.addEventListener('click', () => {
+          const idx = tasks.findIndex(t=>t.id===id);
+          if(idx>-1){ tasks.splice(idx,1); save(); render(currentFilter()); }
+        });
+
+        // Edit: replace content with input
+        editBtn.addEventListener('click', () => startEdit(li, task));
+
+        // Keyboard: Enter on content starts edit
+        content.addEventListener('keydown', (e)=>{
+          if(e.key === 'Enter'){ e.preventDefault(); startEdit(li, task); }
+        });
+      }
+
+      function startEdit(li, task){
+        const contentDiv = li.querySelector('.content');
+        const original = task.text;
+        const input = document.createElement('input');
+        input.className = 'edit';
+        input.value = original;
+        input.setAttribute('aria-label','Edit task input');
+        contentDiv.replaceWith(input);
+        input.focus();
+        // Save on Enter
+        const saveEdit = ()=>{
+          const val = input.value.trim();
+          if(val === '') {
+            // if empty, interpret as delete
+            tasks = tasks.filter(t=>t.id !== task.id);
+          } else {
+            task.text = val;
+          }
+          save(); render(currentFilter());
+        };
+        const cancelEdit = ()=>{
+          render(currentFilter());
+        };
+        input.addEventListener('keydown', (ev)=>{
+          if(ev.key === 'Enter'){ saveEdit(); }
+          else if(ev.key === 'Escape'){ cancelEdit(); }
+        });
+        input.addEventListener('blur', saveEdit);
+      }
+
+      function escapeHtml(str){
+        return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+      }
+
+      // meta & helpers
+      function updateMeta(){
+        const remaining = tasks.filter(t=>!t.completed).length;
+        $remaining.textContent = remaining;
+      }
+
+      function currentFilter(){
+        const activeBtn = $filters.querySelector('button.active');
+        return activeBtn ? activeBtn.dataset.filter : 'all';
+      }
+
+      // actions
+      function addTask(text){
+        const trimmed = text.trim();
+        if(!trimmed) return;
+        tasks.unshift({ id: uid(), text: trimmed, completed: false, created: Date.now() });
+        save(); render(currentFilter());
+        $newTask.value = '';
+        $newTask.focus();
+      }
+
+      $addBtn.addEventListener('click', ()=> addTask($newTask.value));
+      $newTask.addEventListener('keydown', (e)=> { if(e.key === 'Enter') addTask($newTask.value); });
+
+      // filter buttons
+      $filters.addEventListener('click', (e)=>{
+        const btn = e.target.closest('button');
+        if(!btn) return;
+        $filters.querySelectorAll('button').forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+        btn.classList.add('active'); btn.setAttribute('aria-selected','true');
+        render(btn.dataset.filter);
+      });
+
+      // clear completed
+      $clearCompleted.addEventListener('click', ()=>{
+        tasks = tasks.filter(t=>!t.completed);
+        save(); render(currentFilter());
+      });
+
+      // toggle all (mark all completed/uncompleted)
+      $toggleAll.addEventListener('click', ()=>{
+        const anyActive = tasks.some(t=>!t.completed);
+        tasks.forEach(t=> t.completed = anyActive );
+        save(); render(currentFilter());
+      });
+
+      // export tasks (download a JSON file)
+      $exportBtn.addEventListener('click', ()=>{
+        const data = JSON.stringify(tasks, null, 2);
+        const blob = new Blob([data], {type:'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'tasks.json'; document.body.appendChild(a); a.click();
+        a.remove(); URL.revokeObjectURL(url);
+      });
+
+      // initialize
+      function init(){
+        try{ tasks = load() || []; } catch(e){ tasks = []; }
+        // sample task if empty (developer friendly)
+        if(tasks.length === 0){
+          tasks = [
+            { id: uid(), text: 'Welcome — add a task and press Enter', completed:false, created:Date.now()},
+            { id: uid(), text: 'Tip: click a task to mark complete', completed:false, created:Date.now()}
+          ];
+          save();
+        }
+        render();
+      }
+
+      init();
+
+      // Expose for dev console debugging (optional)
+      window.__dev_todo = { get tasks(){return tasks}, save, render };
+    })();
+  </script>
+</body>
+</html>
